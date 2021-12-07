@@ -9,6 +9,8 @@ from pytesseract import Output
 import tkinter
 from tkinter import ttk
 import uuid
+import time
+import threading
 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 # Implement the default Matplotlib key bindings.
@@ -18,10 +20,14 @@ from matplotlib.figure import Figure
 
 root = None
 canvas = None
+canvas_frame = None
+pw = None
 toolbar = None
 tv = None
 output_data = None
 ocr_confidence_th = 60
+axes = None
+fig = None
 
 # get grayscale image
 def get_grayscale(image):
@@ -84,8 +90,8 @@ def preprocess(data, root, filename):
     print(f"Preprocessing {filepath}")
     image = cv2.imread(filepath)
     data.append({'image': image, 'title':filename})
-    im_gray = get_grayscale(image)
-    data.append({'image': im_gray, 'title':'Grayscaled'})
+    # im_gray = get_grayscale(image)
+    # data.append({'image': im_gray, 'title':'Grayscaled'})
     # im_thresh = thresholding(im_gray)
     # data.append({'image': im_thresh, 'title':data[-1]['title']+' Thresholded'})
     # im_opening = opening(im_thresh)
@@ -131,60 +137,74 @@ def clean_ocr_data(d, ocr_threshold):
             new_dict[d['text'][i]] = txt_data
     return new_dict
 
-def show_output(rows=1):
+def update_preview(output_data, rows=1):
+    global fig
+    global axes
     global root
+    global canvas_frame
     global canvas
-    global toolbar
-    global tv
-    global output_data
-    root = tkinter.Tk()
+    global pw
     root.wm_title(output_data[0]['title'])
-    pw = tkinter.PanedWindow(root, orient = tkinter.HORIZONTAL)
-    pw.pack(fill=tkinter.BOTH, expand=1)
-
-    fig, axes = plt.subplots(nrows=rows, ncols=len(output_data))
-    plt.setp(axes, xticks=[], yticks=[])
-    axes = axes.flatten()
     idx = 0
-    # fig.canvas.set_window_title(data[0]['title'])
+    if canvas is None:
+        fig, axes = plt.subplots(nrows=rows, ncols=len(output_data))
+        fig.canvas.set_window_title(output_data[0]['title'])
+        axes = axes.flatten()
+        canvas = FigureCanvasTkAgg(fig, master=canvas_frame)  # A tk.DrawingArea.
+        canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
+
+        toolbar = NavigationToolbar2Tk(canvas, canvas_frame)
+        toolbar.update()
+        canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
+        canvas.mpl_connect("key_press_event", on_key_press)
+
     # plt.ion()
     # plt.show()
-    for img_data in output_data:        
+    for img_data in output_data:
+        axes[idx].clear()        
+        plt.setp(axes, xticks=[], yticks=[])
         imobj = axes[idx].imshow(img_data['image'])
         img_data['imobj'] = imobj
         axes[idx].set_title(img_data['title'], fontdict={'fontsize':9})
         idx += 1
     fig.tight_layout()
     fig.subplots_adjust(wspace=0, hspace=0)
+    canvas.draw()
     # plt.show()
     # plt.waitforbuttonpress()
+    d = output_data[-1]["OCR"]    
+    json_tree(tv, '', d)
+    root.update()
+    tkinter.mainloop()
+
+def setup_window():
+    global root
+    global canvas
+    global canvas_frame
+    global toolbar
+    global tv
+    global output_data
+    global axes
+    global fig
+    global pw
+    root = tkinter.Tk()
+    pw = tkinter.PanedWindow(root, orient = tkinter.HORIZONTAL)
+    pw.pack(fill=tkinter.BOTH, expand=1)
 
     canvas_frame = tkinter.Frame(root)
-    canvas = FigureCanvasTkAgg(fig, master=canvas_frame)  # A tk.DrawingArea.
-    canvas.draw()
-    canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
-
-    toolbar = NavigationToolbar2Tk(canvas, canvas_frame)
-    toolbar.update()
-    canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
-    canvas.mpl_connect("key_press_event", on_key_press)
-
     button = tkinter.Button(master=root, text="Quit", command=_quit)
+    button.pack(side=tkinter.BOTTOM)
+    button = tkinter.Button(master=root, text="Next", command=_next)
     button.pack(side=tkinter.BOTTOM)
 
     pw.add(canvas_frame)
 
     tv = ttk.Treeview(root)
-    d = output_data[-1]["OCR"]
-    
-    json_tree(tv, '', d)
 
     pw.add(tv)
     tv.pack(side=tkinter.RIGHT, fill=tkinter.Y, expand=1)
     tv.bind("<Button-1>", onSingleClick)
     canvas_frame.pack(side=tkinter.LEFT, fill=tkinter.X, expand=1)
-    tkinter.mainloop()
-
 
 def onSingleClick(event):
     global tv
@@ -235,18 +255,24 @@ def _quit():
                     # Fatal Python Error: PyEval_RestoreThread: NULL tstate
     exit()
 
+def _next():
+    global root
+    root.quit()     # stops mainloop
+    
+
 def main():
     global output_data
     ocr_data = []
     print("STARTING!")
-    rootdir = "."
+    rootdir = "screenshots"
+    setup_window()
     for root, dirs, files in os.walk(rootdir):
         ocr_dict = {'root': root}
         # print('--\nroot = ' + root)
         dirs.sort()
         # for subdir in subdirs:
         #     print('\t- subdirectory ' + subdir)
-        files = [ file for file in files if file.lower().endswith( ('.jpg','.png', '.tif', '.jpeg'))]
+        files = [ file for file in files if file.lower().endswith( ('.jpg','.png', '.jpeg', '.bmp'))]
         for filename in files:
             file_path = os.path.join(root, filename)
             ocr_dict["filename"] = filename
@@ -255,7 +281,7 @@ def main():
             output_data = []
             output_data = preprocess(output_data, root, filename)
             output_data = ocr(output_data)
-            show_output()
+            update_preview(output_data)
 
             # with open(file_path, 'rb') as f:
             #     f_content = f.read()

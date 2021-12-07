@@ -28,6 +28,7 @@ output_data = None
 ocr_confidence_th = 60
 axes = None
 fig = None
+file_idx = 0
 
 # get grayscale image
 def get_grayscale(image):
@@ -191,11 +192,16 @@ def setup_window():
     pw = tkinter.PanedWindow(root, orient = tkinter.HORIZONTAL)
     pw.pack(fill=tkinter.BOTH, expand=1)
 
+    bottom = tkinter.Frame(root)
+    bottom.pack(side=tkinter.BOTTOM, fill=tkinter.BOTH, expand=True)
+
     canvas_frame = tkinter.Frame(root)
-    button = tkinter.Button(master=root, text="Quit", command=_quit)
-    button.pack(side=tkinter.BOTTOM)
+    button = tkinter.Button(master=root, text="Exit", command=_quit)
+    button.pack(in_=bottom, side=tkinter.RIGHT)
     button = tkinter.Button(master=root, text="Next", command=_next)
-    button.pack(side=tkinter.BOTTOM)
+    button.pack(in_=bottom, side=tkinter.LEFT)
+    button = tkinter.Button(master=root, text="Prev", command=_prev)
+    button.pack(in_=bottom, side=tkinter.LEFT)
 
     pw.add(canvas_frame)
 
@@ -245,6 +251,10 @@ def on_key_press(event):
     global canvas
     global toolbar
     print("you pressed {}".format(event.key))
+    if event.key == "right":
+        _next()
+    elif event.key == "left":
+        _prev()
     key_press_handler(event, canvas, toolbar)
 
 
@@ -258,10 +268,18 @@ def _quit():
 def _next():
     global root
     root.quit()     # stops mainloop
+
+def _prev():
+    global root
+    global file_idx
+    file_idx -= 2
+    root.quit()
     
 
 def main():
     global output_data
+    global file_idx
+    file_idx = 0
     ocr_data = []
     print("STARTING!")
     rootdir = "screenshots"
@@ -273,7 +291,8 @@ def main():
         # for subdir in subdirs:
         #     print('\t- subdirectory ' + subdir)
         files = [ file for file in files if file.lower().endswith( ('.jpg','.png', '.jpeg', '.bmp'))]
-        for filename in files:
+        while file_idx < len(files):
+            filename = files[file_idx]
             file_path = os.path.join(root, filename)
             ocr_dict["filename"] = filename
             ocr_dict["filepath"] = file_path
@@ -282,6 +301,10 @@ def main():
             output_data = preprocess(output_data, root, filename)
             output_data = ocr(output_data)
             update_preview(output_data)
+            if file_idx < 0:
+                file_idx = 0
+            else:
+                file_idx += 1
 
             # with open(file_path, 'rb') as f:
             #     f_content = f.read()

@@ -173,8 +173,10 @@ def update_preview(output_data, rows=1):
     canvas.draw()
     # plt.show()
     # plt.waitforbuttonpress()
-    d = output_data[-1]["OCR"]    
-    json_tree(tv, '', d)
+    d = output_data[-1]["OCR"]  
+    tv.delete(*tv.get_children())
+    json_tree(tv, '', d)  
+    tv.update()
     root.update()
     tkinter.mainloop()
 

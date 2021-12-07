@@ -25,7 +25,7 @@ pw = None
 toolbar = None
 tv = None
 output_data = None
-ocr_confidence_th = 60
+ocr_confidence_th = 40
 axes = None
 fig = None
 file_idx = 0
@@ -200,9 +200,9 @@ def setup_window():
     canvas_frame = tkinter.Frame(root)
     button = tkinter.Button(master=root, text="Exit", command=_quit)
     button.pack(in_=bottom, side=tkinter.RIGHT)
-    button = tkinter.Button(master=root, text="Next", command=_next)
-    button.pack(in_=bottom, side=tkinter.LEFT)
     button = tkinter.Button(master=root, text="Prev", command=_prev)
+    button.pack(in_=bottom, side=tkinter.LEFT)
+    button = tkinter.Button(master=root, text="Next", command=_next)
     button.pack(in_=bottom, side=tkinter.LEFT)
 
     pw.add(canvas_frame)

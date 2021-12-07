@@ -1,5 +1,5 @@
 # Avoid uploading all the screenshots
-# screenshots/*/*
+screenshots/*/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
